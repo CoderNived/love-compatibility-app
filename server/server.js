@@ -15,35 +15,82 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
+/* ================================
+   SECURITY MIDDLEWARE
+================================ */
+
+// Helmet for secure headers
 app.use(helmet());
+
+// CORS Configuration
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://love-compatibility-app.vercel.app"
+];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow non-browser tools (Postman, curl)
+    if (!origin) return callback(null, true);
+
+    // Allow exact allowed domains
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow all Vercel preview deployments
+    if (origin.endsWith(".vercel.app")) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true
 }));
 
-// Rate limiting
+// Rate limiting for API routes
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
+
 app.use('/api/', limiter);
 
-// Body parser middleware
+/* ================================
+   BODY PARSING
+================================ */
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
+/* ================================
+   HEALTH CHECK
+================================ */
+
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date() });
+  res.status(200).json({
+    status: 'OK',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date()
+  });
 });
 
-// Routes
+/* ================================
+   ROUTES
+================================ */
+
 app.use('/api/love', loveRoutes);
 
-// Error handler (must be last)
+/* ================================
+   ERROR HANDLER
+================================ */
+
 app.use(errorHandler);
+
+/* ================================
+   SERVER START
+================================ */
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
